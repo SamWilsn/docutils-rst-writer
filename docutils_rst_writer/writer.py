@@ -14,18 +14,25 @@
         team.
 """
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import (
+    absolute_import,
+    annotations,
+    print_function,
+    unicode_literals,
+)
 
 import logging
 import os
 import sys
 import textwrap
+from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from docutils import nodes, writers
 from docutils.nodes import Node
 from docutils.nodes import document as Document
 from docutils.nodes import fully_normalize_name
+from docutils.utils import roman
 
 MAXWIDTH = 70
 STDINDENT = 3
@@ -597,11 +604,35 @@ class RstTranslator(nodes.NodeVisitor):
         self.list_formatter.pop()
 
     def visit_enumerated_list(self, node: Node) -> None:
-        def enumerated_list_format(counter: int) -> str:
-            return str(counter) + "."
+        prefix = node.attributes.get("prefix", "")
+        suffix = node.attributes.get("suffix", ".")
 
-        self.list_counter.append(0)
-        self.list_formatter.append(enumerated_list_format)
+        start = node.attributes.get("start", 1)
+
+        enumtype = node.attributes.get("enumtype", "arabic")
+
+        formatter: Callable[[int], str]
+
+        if enumtype == "arabic":
+            formatter = _arabic_list_format
+        elif enumtype == "loweralpha":
+            formatter = _lower_alpha_list_format
+        elif enumtype == "upperalpha":
+            formatter = _upper_alpha_list_format
+        elif enumtype == "lowerroman":
+            formatter = _lower_roman_list_format
+        elif enumtype == "upperroman":
+            formatter = _upper_roman_list_format
+        else:
+            formatter = _arabic_list_format
+            self.log_warning(
+                f"list format `{enumtype}` is unknown, using arabic"
+            )
+
+        self.list_counter.append(start - 1)
+        self.list_formatter.append(
+            partial(formatter, suffix=suffix, prefix=prefix)
+        )
 
     def depart_enumerated_list(self, node: Node) -> None:
         self.list_counter.pop()
@@ -1013,3 +1044,43 @@ class RstTranslator(nodes.NodeVisitor):
         pass
 
     default_visit = unknown_visit
+
+
+def _upper_alpha_list_format(
+    counter: int, prefix: str = "", suffix: str = "."
+) -> str:
+    if counter < 1 or counter > 26:
+        raise ValueError(f"list counter ({counter}) is out of range")
+
+    code = ord("A") + counter - 1
+    return f"{prefix}{chr(code)}{suffix}"
+
+
+def _lower_alpha_list_format(
+    counter: int, prefix: str = "", suffix: str = "."
+) -> str:
+    if counter < 1 or counter > 26:
+        raise ValueError(f"list counter ({counter}) is out of range")
+
+    code = ord("a") + counter - 1
+    return f"{prefix}{chr(code)}{suffix}"
+
+
+def _lower_roman_list_format(
+    counter: int, prefix: str = "", suffix: str = "."
+) -> str:
+    txt = roman.toRoman(counter).lower()
+    return f"{prefix}{txt}{suffix}"
+
+
+def _upper_roman_list_format(
+    counter: int, prefix: str = "", suffix: str = "."
+) -> str:
+    txt = roman.toRoman(counter)
+    return f"{prefix}{txt}{suffix}"
+
+
+def _arabic_list_format(
+    counter: int, prefix: str = "", suffix: str = "."
+) -> str:
+    return f"{prefix}{counter}{suffix}"
