@@ -593,8 +593,10 @@ class RstTranslator(nodes.NodeVisitor):
         raise nodes.SkipNode
 
     def visit_bullet_list(self, node: Node) -> None:
+        bullet = node.attributes.get("bullet", "*")
+
         def bullet_list_format(counter: int) -> str:
-            return "*"
+            return bullet
 
         self.list_counter.append(-1)  # TODO: just 0 is fine.
         self.list_formatter.append(bullet_list_format)
