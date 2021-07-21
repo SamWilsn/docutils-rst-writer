@@ -25,6 +25,7 @@ import logging
 import os
 import sys
 import textwrap
+from dataclasses import dataclass
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -62,6 +63,12 @@ admonitionlabels = {
 }
 
 
+@dataclass
+class _State:
+    indent: int
+    blocks: List[Tuple[int, List[str]]]
+
+
 class Writer(writers.Writer):
     supported = ("text",)
     settings_spec = ("No options here.", "", ())
@@ -81,7 +88,7 @@ class Writer(writers.Writer):
 class RstTranslator(nodes.NodeVisitor):
     nl: str
     sectionchars: str
-    states: List[List]
+    states: List[_State]
     list_counter: List[int]
     list_formatter: List[Callable[[int], str]]
     sectionlevel: int
@@ -95,8 +102,7 @@ class RstTranslator(nodes.NodeVisitor):
 
         self.nl = os.linesep
         self.sectionchars = '*=-~"+`'
-        self.states = [[]]
-        self.stateindent = [0]
+        self.states = [_State(blocks=[], indent=0)]
         self.list_counter = []
         self.list_formatter = []
         self.sectionlevel = 0
@@ -128,11 +134,10 @@ class RstTranslator(nodes.NodeVisitor):
         return self.wrapper.wrap(text)
 
     def add_text(self, text: str) -> None:
-        self.states[-1].append((-1, text))
+        self.states[-1].blocks.append((-1, [text]))
 
     def new_state(self, indent: int = STDINDENT) -> None:
-        self.states.append([])
-        self.stateindent.append(indent)
+        self.states.append(_State(indent=indent, blocks=[]))
 
     def end_state(
         self,
@@ -140,9 +145,11 @@ class RstTranslator(nodes.NodeVisitor):
         end: Optional[List] = [""],
         first: Optional[str] = None,
     ) -> None:
-        content = self.states.pop()
-        width = max(MAXWIDTH // 3, MAXWIDTH - sum(self.stateindent))
-        indent = self.stateindent.pop()
+        width = max(
+            MAXWIDTH // 3, MAXWIDTH - sum(s.indent for s in self.states)
+        )
+        state = self.states.pop()
+
         result: List[Tuple[int, List[str]]] = []
         toformat: List[str] = []
 
@@ -155,22 +162,24 @@ class RstTranslator(nodes.NodeVisitor):
                 res = "".join(toformat).splitlines()
             if end:
                 res += end
-            result.append((indent, res))
+            result.append((state.indent, res))
 
-        for itemindent, item in content:
+        for itemindent, item in state.blocks:
             if itemindent == -1:
-                toformat.append(item)
+                toformat.extend(item)
             else:
                 do_format()
-                result.append((indent + itemindent, item))
+                result.append((state.indent + itemindent, item))
                 toformat = []
         do_format()
         if first is not None and result:
             itemindent, item = result[0]
             if item:
-                result.insert(0, (itemindent - indent, [first + item[0]]))
+                result.insert(
+                    0, (itemindent - state.indent, [first + item[0]])
+                )
                 result[1] = (itemindent, item[1:])
-        self.states[-1].extend(result)
+        self.states[-1].blocks.extend(result)
 
     def visit_document(self, node: Node) -> None:
         self.new_state(0)
@@ -179,7 +188,7 @@ class RstTranslator(nodes.NodeVisitor):
         self.end_state()
         self.body = self.nl.join(
             line and (" " * indent + line)
-            for indent, lines in self.states[0]
+            for indent, lines in self.states[0].blocks
             for line in lines
         )
         # TODO: add header/footer?
@@ -236,9 +245,11 @@ class RstTranslator(nodes.NodeVisitor):
             char = self._title_char
         else:
             char = "^"
-        text = "".join(x[1] for x in self.states.pop() if x[0] == -1)
-        self.stateindent.pop()
-        self.states[-1].append((0, ["", text, "%s" % (char * len(text)), ""]))
+        blocks = self.states.pop().blocks
+        text = "".join("".join(x[1]) for x in blocks if x[0] == -1)
+        self.states[-1].blocks.append(
+            (0, ["", text, "%s" % (char * len(text)), ""])
+        )
 
     def visit_subtitle(self, node: Node) -> None:
         # self.log_unknown("subtitle", node)
@@ -502,8 +513,9 @@ class RstTranslator(nodes.NodeVisitor):
 
     def depart_entry(self, node: Node) -> None:
         assert self.table is not None
-        text = self.nl.join(self.nl.join(x[1]) for x in self.states.pop())
-        self.stateindent.pop()
+        text = self.nl.join(
+            self.nl.join(x[1]) for x in self.states.pop().blocks
+        )
         self.table[-1].append(text)
 
     def visit_table(self, node: Node) -> None:
@@ -586,7 +598,7 @@ class RstTranslator(nodes.NodeVisitor):
         raise nodes.SkipNode
 
     def visit_transition(self, node: Node) -> None:
-        indent = sum(self.stateindent)
+        indent = sum(state.indent for state in self.states)
         self.new_state(0)
         self.add_text("=" * (MAXWIDTH - indent))
         self.end_state()
@@ -649,7 +661,7 @@ class RstTranslator(nodes.NodeVisitor):
 
     def depart_list_item(self, node: Node) -> None:
         # formatting to make the string `self.stateindent[-1]` chars long.
-        format = "%%-%ds" % (self.stateindent[-1])
+        format = "%%-%ds" % (self.states[-1].indent)
         bullet_formatter = self.list_formatter[-1]
         bullet = format % bullet_formatter(self.list_counter[-1])
         self.end_state(first=bullet, end=None)
