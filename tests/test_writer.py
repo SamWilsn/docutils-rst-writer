@@ -148,19 +148,19 @@ rewrite_testdata = [
     (
         "bulleted_list_asterix",
         """
-        * a bullet point
+        *  a bullet point
         """,
     ),
     (
         "bulleted_lists",
         """
-        * a bullet point using "*"
+        *  a bullet point using "*"
 
-          - a sub-list using "-"
+           -  a sub-list using "-"
 
-            + yet another sub-list
+              +  yet another sub-list
 
-          - another item
+           -  another item
         """,
     ),
 ]
