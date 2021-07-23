@@ -3,6 +3,7 @@ from typing import Optional
 
 import pytest
 from docutils import nodes
+from docutils.core import publish_string
 from docutils.frontend import OptionParser
 from docutils.parsers.rst import Parser
 from docutils.utils import new_document
@@ -62,12 +63,13 @@ rewrite_testdata = [
     #
     # Escaping
     #
-    # (
-    #     "escape_backslash",
-    #     """
-    #     \\*escaped*
-    #     """,
-    # ),
+    (
+        "escape_backslash",
+        "backslash escaping is broken",
+        """
+        \\*escaped*
+        """,
+    ),
     (
         "escape_backtick",
         """
@@ -163,17 +165,132 @@ rewrite_testdata = [
            -  another item
         """,
     ),
+    (
+        "definition_lists",
+        """
+        what
+           Definition lists associate a term with a definition.
+
+        *how*
+           The term is a one-line phrase, and the definition is one or more
+           paragraphs or body elements, indented relative to the term. Blank
+           lines are not allowed between term and definition.
+        """,
+    ),
+    #
+    # Preformatting
+    #
+    (
+        "preformat",
+        """
+        An example::
+
+            Whitespace, newlines, blank lines, and all kinds of markup
+              (like *this* or \\this) is preserved by literal blocks.
+          Lookie here, I've dropped an indentation level
+          (but not far enough)
+
+        no more example
+        """,
+    ),
+    (
+        "preformat_trim",
+        """
+        ::
+
+            This is preformatted text, and the
+            last "::" paragraph is removed
+        """,
+    ),
+    #
+    # Sections
+    #
+    (
+        "sections",
+        """
+        Chapter 1 Title
+        ===============
+
+        Section 1.1 Title
+        -----------------
+
+        Subsection 1.1.1 Title
+        ~~~~~~~~~~~~~~~~~~~~~~
+
+        Section 1.2 Title
+        -----------------
+
+        Chapter 2 Title
+        ===============
+        """,
+    ),
+    (
+        "subtitle",
+        """
+        ================
+         Document Title
+        ================
+        ----------
+         Subtitle
+        ----------
+
+        Section Title
+        =============
+        """,
+    ),
+    #
+    # Images
+    #
+    (
+        "image",
+        """
+        .. image:: images/biohazard.png
+           :name: banana
+           :class: foo bar
+           :alt: alternate text
+           :height: 100
+           :width: 200
+           :scale: 50
+        """,
+    ),
+    (
+        "image_with_name_with_space",
+        """
+        .. image:: images/biohazard.png
+           :name: banana bobana
+        """,
+    ),
+    (
+        "image_with_name",
+        """
+        .. image:: images/biohazard.png
+           :name: banana
+        """,
+    ),
+    (
+        "image_with_target",
+        "references are broken",
+        """
+        .. image:: images/biohazard.png
+           :target: banana
+        """,
+    ),
 ]
 
 
 @pytest.mark.parametrize(
-    "src",
-    [x for (_, x) in rewrite_testdata],
-    ids=[name for (name, _) in rewrite_testdata],
+    "src,skip",
+    [(x[1], None) if len(x) == 2 else (x[2], x[1]) for x in rewrite_testdata],
+    ids=[test[0] for test in rewrite_testdata],
 )
-def test_rewrite(src: str) -> None:
+def test_rewrite(src: str, skip: Optional[str]) -> None:
+    if skip is not None:
+        pytest.skip(skip)
+
     src = dedent(src).lstrip()
 
     doc = parse_rst(src)
     wrote = write_rst(doc)
-    assert src == wrote
+    assert wrote is not None
+
+    assert publish_string(wrote) == publish_string(src)

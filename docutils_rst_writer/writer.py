@@ -586,10 +586,37 @@ class RstTranslator(nodes.NodeVisitor):
 
     def visit_image(self, node: Node) -> None:
         self.new_state(0)
+
+        def process_attrs() -> None:
+            indent = " " * self.indent
+
+            # TODO: handle :name:, names, and ids
+
+            names = node.attributes.get("names", [])
+            if len(names):
+                self.add_text(f"{self.nl}{indent}:name: {names[0]}")
+                if len(names) > 1:
+                    self.log_warning("multiple names not supported")
+
+            classes = node.attributes.get("classes", [])
+            if len(classes):
+                value = " ".join(classes)
+                self.add_text(f"{self.nl}{indent}:class: {value}")
+
+            for key in ("alt", "height", "width", "scale", "align", "target"):
+                value = node.attributes.get(key, None)
+                if value is None:
+                    continue
+
+                indent = " " * self.indent
+                self.add_text(f"{self.nl}{indent}:{key}: {value}")
+
         if "uri" in node:
             self.add_text(_(".. image:: %s") % escape_uri(node["uri"]))
+            process_attrs()
         elif "target" in node.attributes:
             self.add_text(_(".. image: %s") % node["target"])
+            process_attrs()
         elif "alt" in node.attributes:
             self.add_text(_("[image: %s]") % node["alt"])
         else:
