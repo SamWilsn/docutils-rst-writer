@@ -43,15 +43,15 @@ rewrite_testdata = [
     # Text Formatting
     #
     (
-        "fmt_italics",
+        "fmt_emphasis",
         """
-        *italics*
+        *emphasis*
         """,
     ),
     (
-        "fmt_bold",
+        "fmt_strong",
         """
-        **bold**
+        **strong**
         """,
     ),
     (
@@ -64,8 +64,13 @@ rewrite_testdata = [
     # Escaping
     #
     (
+        "escape_literal_backslash",
+        """
+        ``\\``
+        """,
+    ),
+    (
         "escape_backslash",
-        "backslash escaping is broken",
         """
         \\*escaped*
         """,
@@ -275,6 +280,34 @@ rewrite_testdata = [
            :target: banana
         """,
     ),
+    #
+    # Admonitions
+    #
+    (
+        "admonition_danger",
+        """
+        .. DANGER::
+           Beware killer rabbits!
+        """,
+    ),
+    (
+        "admonition_note",
+        """
+        .. note::
+           Beware killer rabbits!
+        """,
+    ),
+    (
+        "admonition_with_list",
+        """
+        .. note:: This is a note admonition.
+           This is the second line of the first paragraph.
+
+           - The note contains all indented body elements
+             following.
+           - It includes this bullet list.
+        """,
+    ),
 ]
 
 
@@ -293,4 +326,6 @@ def test_rewrite(src: str, skip: Optional[str]) -> None:
     wrote = write_rst(doc)
     assert wrote is not None
 
+    print(src)
+    print(wrote)
     assert publish_string(wrote) == publish_string(src)
