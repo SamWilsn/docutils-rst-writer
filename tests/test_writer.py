@@ -317,6 +317,14 @@ rewrite_testdata = [
         .. _some reference: http://example.com
         """,
     ),
+    (
+        "reference_anonymous",
+        """
+        anon__
+
+        __ http://example.com
+        """
+    ),
     #
     # Admonitions
     #

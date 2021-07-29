@@ -133,9 +133,12 @@ class _ListItem:
 
 class _Reference:
     text_only: bool
+    anonymous: bool
     target: Optional[str]
 
     def __init__(self, node: Node):
+        self.anonymous = "anonymous" in node and bool(node["anonymous"])
+
         if "refuri" in node:
             self.target = escape_uri(node["refuri"])
         elif "refname" in node:
@@ -389,23 +392,27 @@ class RstTranslator(nodes.NodeVisitor):
     def depart_reference(self, node: Node) -> None:
         reference = _Reference(node)
         if reference.text_only:
-            self.write("`_")
+            if reference.anonymous:
+                self.write("`__")
+            else:
+                self.write("`_")
 
     def visit_target(self, node: Node) -> None:
         names = node["names"]
-        if len(names) < 1:
-            raise NotImplementedError("target without name")
+        directive = "__"
 
         if len(names) > 2:
             self.log_warning("target with multiple names not supported yet")
 
-        name = names[0]
+        if len(names) >= 1:
+            name = names[0]
+            directive = f".. _{name}:"
 
         if "refuri" in node:
             refuri = escape_uri(node["refuri"].replace("\x00", "\\"))
-            self.write(f".. _{name}: {refuri}")
+            self.write(f"{directive} {refuri}")
         else:
-            self.write(f".. _{name}:")
+            self.write(directive)
 
     def depart_target(self, node: Node) -> None:
         self.write("\n")
