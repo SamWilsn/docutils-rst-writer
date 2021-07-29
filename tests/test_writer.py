@@ -273,11 +273,48 @@ rewrite_testdata = [
         """,
     ),
     (
-        "image_with_target",
-        "references are broken",
+        "image_with_target_name",
         """
         .. image:: images/biohazard.png
-           :target: banana
+           :target: `banana`_
+
+        .. _banana: http://example.com/banana
+        """,
+    ),
+    (
+        "image_with_target_uri",
+        """
+        .. image:: images/biohazard.png
+           :target: http://example.com/image
+        """,
+    ),
+    #
+    # References
+    #
+    (
+        "reference_named",
+        """
+        Banana_
+
+        .. _Banana: http://example.com/banana
+        """,
+    ),
+    (
+        "reference_named_phrase_with_backslash",
+        """
+        `some \\`reference`_
+        `another :reference`_
+
+        .. _some `reference: another \\:reference
+        .. _another \\:reference: http://example.com/colon
+        """,
+    ),
+    (
+        "reference_named_phrase",
+        """
+        `some reference`_
+
+        .. _some reference: http://example.com
         """,
     ),
     #

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    sphinxcontrib.writers.rst
-    ~~~~~~~~~~~~~~~~~~~~~~~~~
+    docutils-rst-writer
+    ~~~~~~~~~~~~~~~~~~~
 
     Custom docutils writer for ReStructuredText.
 
@@ -131,6 +131,27 @@ class _ListItem:
         return f"{self.prefix}{counter}{self.suffix}"
 
 
+class _Reference:
+    text_only: bool
+    target: Optional[str]
+
+    def __init__(self, node: Node):
+        if "refuri" in node:
+            self.target = escape_uri(node["refuri"])
+        elif "refname" in node:
+            self.target = f"`{node['refname']}`_"
+        else:
+            self.target = None
+
+        text_only = True
+        for child in node.children:
+            if not isinstance(child, nodes.Text):
+                text_only = False
+                break
+
+        self.text_only = text_only
+
+
 class RstTranslator(nodes.NodeVisitor):
     lines: List[str]
     indent: int
@@ -180,6 +201,11 @@ class RstTranslator(nodes.NodeVisitor):
         node: Node,
         attrs: Tuple[Union[str, Tuple[str, str]], ...],
     ) -> None:
+        if isinstance(node.parent, nodes.reference):
+            reference = _Reference(node.parent)
+            if reference.target is not None:
+                self.write(f":target: {reference.target}\n")
+
         if "names" in node:
             if len(node["names"]) > 1:
                 RstTranslator.log_warning("multiple names not supported")
@@ -333,28 +359,58 @@ class RstTranslator(nodes.NodeVisitor):
 
     def depart_title(self, node: Node) -> None:
         assert self.section_depth is not None
-        length = len(str(node))
+        # TODO: Account for ellipsis/strong/... in title length
+        length = sum(len(str(x)) for x in node.children)
         underline = self.title_underline[self.section_depth] * length
-        self.write("\n" + underline * length + "\n")
+        self.write("\n" + underline + "\n")
 
     def visit_image(self, node: Node) -> None:
         if "uri" in node:
             arg = escape_uri(node["uri"])
-        elif "target" in node.attributes:
-            arg = node["target"]
         else:
-            raise NotImplementedError("image without uri/target")
+            raise NotImplementedError("image without uri")
 
         self.write(f".. image:: {arg}\n")
         self.indent += 3
-        self.write_attributes(node, ("alt", "height", "width", "scale"))
+        self.write_attributes(
+            node,
+            ("target", "alt", "height", "width", "scale"),
+        )
         self.indent -= 3
 
     def depart_image(self, node: Node) -> None:
         pass
 
+    def visit_reference(self, node: Node) -> None:
+        reference = _Reference(node)
+        if reference.text_only:
+            self.write("`")
+
+    def depart_reference(self, node: Node) -> None:
+        reference = _Reference(node)
+        if reference.text_only:
+            self.write("`_")
+
+    def visit_target(self, node: Node) -> None:
+        names = node["names"]
+        if len(names) < 1:
+            raise NotImplementedError("target without name")
+
+        if len(names) > 2:
+            self.log_warning("target with multiple names not supported yet")
+
+        name = names[0]
+
+        if "refuri" in node:
+            refuri = escape_uri(node["refuri"].replace("\x00", "\\"))
+            self.write(f".. _{name}: {refuri}")
+        else:
+            self.write(f".. _{name}:")
+
+    def depart_target(self, node: Node) -> None:
+        self.write("\n")
+
     def visit_note(self, node: Node) -> None:
-        print(node)
         self.write(f".. {node.tagname}:: ")
         self.indent += 3
 
