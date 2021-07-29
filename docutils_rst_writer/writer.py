@@ -398,24 +398,30 @@ class RstTranslator(nodes.NodeVisitor):
                 self.write("`_")
 
     def visit_target(self, node: Node) -> None:
-        names = node["names"]
-        directive = "__"
-
-        if len(names) > 2:
-            self.log_warning("target with multiple names not supported yet")
-
-        if len(names) >= 1:
-            name = names[0]
-            directive = f".. _{name}:"
-
-        if "refuri" in node:
-            refuri = escape_uri(node["refuri"].replace("\x00", "\\"))
-            self.write(f"{directive} {refuri}")
+        if node.children:
+            self.write("_`")
         else:
-            self.write(directive)
+            names = node["names"]
+            directive = "__"
+
+            if len(names) > 2:
+                self.log_warning("target with multiple names not supported")
+
+            if len(names) >= 1:
+                name = names[0]
+                directive = f".. _{name}:"
+
+            if "refuri" in node:
+                refuri = escape_uri(node["refuri"].replace("\x00", "\\"))
+                self.write(f"{directive} {refuri}")
+            else:
+                self.write(directive)
 
     def depart_target(self, node: Node) -> None:
-        self.write("\n")
+        if node.children:
+            self.write("`")
+        else:
+            self.write("\n")
 
     def visit_note(self, node: Node) -> None:
         self.write(f".. {node.tagname}:: ")

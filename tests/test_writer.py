@@ -1,5 +1,5 @@
 from textwrap import dedent
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import pytest
 from docutils import nodes
@@ -27,7 +27,7 @@ def write_rst(doc: nodes.document) -> Optional[str]:
     return writer.output
 
 
-rewrite_testdata = [
+rewrite_testdata: List[Tuple[str, ...]] = [
     (
         "paragraphs_and_blockquotes",
         """
@@ -323,7 +323,15 @@ rewrite_testdata = [
         anon__
 
         __ http://example.com
+        """,
+    ),
+    (
+        "reference_inline",
         """
+        `link to something`_
+
+        _`link to something`
+        """,
     ),
     #
     # Admonitions
