@@ -345,6 +345,66 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         _`link to something`
         """,
     ),
+    (
+        "reference_footnote",
+        """
+        footnote reference [1]_
+
+        .. [1] some footnote
+        """,
+    ),
+    (
+        "reference_footnotes",
+        """
+        Footnote references, like [5]_.
+        Note that footnotes may get
+        rearranged, e.g., to the bottom of
+        the "page".
+
+        .. [5] A numerical footnote. Note
+           there's no colon after the ``]``.
+        """,
+    ),
+    (
+        "reference_footnotes_autonumber",
+        """
+        Autonumbered footnotes are
+        possible, like using [#]_ and [#]_.
+
+        .. [#] This is the first one.
+        .. [#] This is the second one.
+
+        They may be assigned 'autonumber
+        labels' - for instance,
+        [#fourth]_ and [#third]_.
+
+        .. [#third] a.k.a. third_
+
+        .. [#fourth] a.k.a. fourth_
+        """,
+    ),
+    (
+        "reference_footnotes_autosymbol",
+        """
+        Auto-symbol footnotes are also
+        possible, like this: [*]_ and [*]_.
+
+        .. [*] This is the first one.
+        .. [*] This is the second one.
+        """,
+    ),
+    (
+        "reference_footnote_with_list",
+        """
+        footnote reference [1]_
+
+        .. [1] some footnote
+
+           1. hello world
+
+           2. banana
+        """,
+    ),
     #
     # Substitutions
     #

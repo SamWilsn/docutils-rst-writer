@@ -581,3 +581,54 @@ class RstTranslator(nodes.NodeVisitor):
             (_AttrKind("ltrim", flag=True), _AttrKind("rtrim", flag=True)),
         )
         self.indent -= 3
+
+    def visit_footnote_reference(self, node: Node) -> None:
+        self.write("[")
+        refname = node.get("refname", "")
+
+        auto = node.get("auto", None)
+        if auto == 1:
+            self.write(f"#{refname}")
+        elif auto == "*":
+            assert refname == ""
+            self.write("*")
+        elif auto is not None:
+            RstTranslator.log_warning(
+                f"unsupported automatic footnote `{auto}`"
+            )
+
+    def depart_footnote_reference(self, node: Node) -> None:
+        self.write("]_")
+
+    def visit_footnote(self, node: Node) -> None:
+        self.write(".. ")
+
+        names = node.get("names", [])
+        if not names:
+            name = ""
+        else:
+            if len(names) > 1:
+                RstTranslator.log_warning("multiple names not supported")
+            name = names[0]
+
+        auto = node.get("auto", None)
+        if auto == 1:
+            self.write(f"[#{name}] ")
+        elif auto == "*":
+            assert name == ""
+            self.write("[*] ")
+        elif auto is not None:
+            RstTranslator.log_warning(
+                f"unsupported automatic footnote `{auto}`"
+            )
+
+        self.indent += 3
+
+    def depart_footnote(self, node: Node) -> None:
+        self.indent -= 3
+
+    def visit_label(self, node: Node) -> None:
+        self.write("[")
+
+    def depart_label(self, node: Node) -> None:
+        self.write("] ")
