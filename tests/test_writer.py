@@ -97,6 +97,16 @@ rewrite_testdata: List[Tuple[str, ...]] = [
     # Lists
     #
     (
+        "enumerated_list_arabic_automatic",
+        """
+        1. numbers
+
+        #. numbers
+
+        #. numbers
+        """,
+    ),
+    (
         "enumerated_list_arabic",
         """
         1. numbers
@@ -438,6 +448,14 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         "reference_hyperlink",
         """
         https://example.com
+        """,
+    ),
+    (
+        "reference_hyperlink_embedded",
+        "broken",
+        """
+        External hyperlinks, like `Python
+        <http://www.python.org/>`_.
         """,
     ),
     #
