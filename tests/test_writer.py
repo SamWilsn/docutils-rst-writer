@@ -81,6 +81,18 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         ``*``
         """,
     ),
+    (
+        "escape_bar",
+        """
+        \\|
+        """,
+    ),
+    (
+        "escape_backslash_bar",
+        """
+        \\\\|
+        """,
+    ),
     #
     # Lists
     #
@@ -334,6 +346,144 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         """,
     ),
     #
+    # Substitutions
+    #
+    (
+        "substitution_image",
+        """
+        The |biohazard| symbol must be used on containers used to dispose of
+        medical waste.
+
+        .. |biohazard| image:: biohazard.png
+        """,
+    ),
+    (
+        "substitution_replace",
+        """
+        The |biohazard| symbol must be used on containers used to dispose of
+        medical waste.
+
+        .. |biohazard| replace:: here's the *real* |realbiohazard|
+        .. |realbiohazard| image:: biohazard.png
+        """,
+    ),
+    (
+        "substitution_newline",
+        """
+        all rights |hello| reserved.
+
+        .. |hello| replace:: BogusMegaCorp
+           hello
+        """,
+    ),
+    (
+        "substitution_unicode",
+        """
+        Copyright |copy| 2003, |BogusMegaCorp (TM)| |---|
+        all rights reserved.
+
+        .. |copy| unicode:: 0xA9
+        .. |BogusMegaCorp (TM)| unicode:: BogusMegaCorp U+2122
+        .. |---| unicode:: U+02014
+           :trim:
+        """,
+    ),
+    (
+        "substitution_unicode_newline",
+        """
+        all rights |hello| reserved.
+
+        .. |hello| unicode:: BogusMegaCorp
+           hello
+           :trim:
+        """,
+    ),
+    (
+        "substitution_unicode_within_unicode",
+        # This should render the literal text `U+1F63F`. If it renders a crying
+        # cat face emoji, there's a bug.
+        """
+        Banana |foo|.
+
+        .. |foo| unicode:: U+0055 +1F63F
+           :trim:
+        """,
+    ),
+    (
+        "substitution_unicode_double_substitution_with_space",
+        "trees seem to match, but the string representations don't",
+        """
+        .. |boom| unicode:: |baby| |baby|
+        .. |baby| replace:: orange
+
+        ka |boom|.
+        """,
+    ),
+    (
+        "substitution_unicode_double_substitution",
+        """
+        .. |boom| unicode:: |baby||baby|
+        .. |baby| replace:: orange
+
+        ka |boom|.
+        """,
+    ),
+    (
+        "substitution_escaped_substitution",
+        """
+        .. |boom| replace:: \\|baby|
+        .. |baby| replace:: orange
+
+        ka |boom|.
+        """,
+    ),
+    (
+        "substitution_unicode_substitution",
+        """
+        .. |boom| unicode:: |baby|
+        .. |baby| replace:: orange
+
+        ka |boom|.
+        """,
+    ),
+    (
+        "substitution_unicode_escape",
+        """
+        .. |boom| unicode:: boom\\ baby
+
+        ka |boom|.
+        """,
+    ),
+    (
+        "substitution_trim_as_text",
+        """
+        .. |boom| replace:: boom
+           :trim:
+
+        ka |boom|.
+        """,
+    ),
+    (
+        "substitution_unicode_trim",
+        """
+        .. |boom| unicode:: boom
+           :trim:
+
+        ka |boom|.
+        """,
+    ),
+    (
+        "substitution_date_time",
+        """
+        .. |date| date::
+        .. |time| date:: %H:%M
+
+        Today's date is |date|.
+
+        This document was generated on |date| at |time|.
+        """,
+    ),
+    #
     # Admonitions
     #
     (
@@ -379,6 +529,17 @@ def test_rewrite(src: str, skip: Optional[str]) -> None:
     wrote = write_rst(doc)
     assert wrote is not None
 
+    print("expected doc:\n")
+    print(doc, end="\n\n")
+
+    print("actual doc:\n")
+    print(parse_rst(wrote), end="\n\n")
+
+    print("original rst:\n")
     print(src)
+
+    print("actual rst:\n")
     print(wrote)
-    assert publish_string(wrote) == publish_string(src)
+    assert publish_string(wrote).decode("utf-8") == publish_string(src).decode(
+        "utf-8"
+    )

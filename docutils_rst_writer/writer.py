@@ -22,7 +22,9 @@ from __future__ import (
 )
 
 import logging
+import re
 import sys
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from docutils import nodes, writers
@@ -155,6 +157,23 @@ class _Reference:
         self.text_only = text_only
 
 
+@dataclass
+class _AttrKind:
+    node_attr: str
+    rst_attr: str
+    flag: bool
+
+    def __init__(
+        self,
+        node_attr: str,
+        rst_attr: Optional[str] = None,
+        flag: bool = False,
+    ) -> None:
+        self.node_attr = node_attr
+        self.rst_attr = node_attr if rst_attr is None else rst_attr
+        self.flag = flag
+
+
 class RstTranslator(nodes.NodeVisitor):
     lines: List[str]
     indent: int
@@ -199,46 +218,78 @@ class RstTranslator(nodes.NodeVisitor):
         self.lines[-1] += lines[0]
         self.lines.extend(lines[1:])
 
+    def write_markup_start(
+        self,
+        node: Node,
+        name: str,
+    ) -> None:
+        if isinstance(node.parent, nodes.substitution_definition):
+            self.write(f"{name}::")
+        else:
+            # TODO: Should we assert self.lines[-1] is blank here?
+            self.write(f".. {name}::")
+
     def write_attributes(
         self,
         node: Node,
-        attrs: Tuple[Union[str, Tuple[str, str]], ...],
+        attrs: Tuple[Union[str, _AttrKind], ...],
     ) -> None:
+        wrote_any = False
         if isinstance(node.parent, nodes.reference):
             reference = _Reference(node.parent)
             if reference.target is not None:
+                wrote_any = True
                 self.write(f":target: {reference.target}\n")
 
-        if "names" in node:
-            if len(node["names"]) > 1:
-                RstTranslator.log_warning("multiple names not supported")
-
-            if len(node["names"]) > 0:
-                name = node["names"][0]
-                self.write(f":name: {name}\n")
-
-        if "classes" in node:
-            classes = " ".join(node["classes"])
-
-            if classes:
-                self.write(f":class: {classes}\n")
-
         for item in attrs:
-            if isinstance(item, tuple):
-                (node_attr, rst_attr) = item
+            wrote_one = False
+            if isinstance(item, str):
+                kind = _AttrKind(item)
             else:
-                node_attr = item
-                rst_attr = item
+                kind = item
 
-            if node_attr not in node:
+            node_attr = kind.node_attr
+            rst_attr = kind.rst_attr
+
+            if node_attr not in node or not node.is_not_default(node_attr):
                 continue
 
-            value = node[node_attr]
+            value: str
 
-            if value is None:
-                self.write(f":{rst_attr}:\n")
+            if node_attr == "names":
+                if len(node["names"]) > 1:
+                    RstTranslator.log_warning("multiple names not supported")
+
+                if len(node["names"]) > 0:
+                    value = node["names"][0]
+                    wrote_one = True
+                    self.write(":name:")
+
+            elif node_attr == "classes":
+                value = " ".join(node["classes"])
+
+                if value:
+                    wrote_one = True
+                    self.write(":class:")
+
             else:
-                self.write(f":{rst_attr}: {value}\n")
+                value = node[node_attr]
+
+                self.write(f":{rst_attr}:")
+                wrote_one = True
+
+            if wrote_one:
+                wrote_any = True
+
+                if kind.flag:
+                    self.write("\n")
+                else:
+                    self.write(f" {value}\n")
+
+        if wrote_any:
+            self.write("\n\n")
+        else:
+            self.write("\n")
 
     def visit_document(self, node: Node) -> None:
         pass
@@ -252,8 +303,36 @@ class RstTranslator(nodes.NodeVisitor):
     def depart_paragraph(self, node: Node) -> None:
         self.write("\n\n")
 
+    def needs_space(self, node: Node) -> bool:
+        text = str(node).replace("\x00", "\\")
+
+        if not node.parent or not text or text[0].isspace():
+            return False
+
+        index = node.parent.index(node)
+        if index == 0:
+            return False
+
+        preceding = node.parent.children[index - 1]
+        if not isinstance(preceding, node.__class__):
+            return False
+
+        preceding_text = str(preceding)
+        return bool(preceding_text) and not preceding_text[-1].isspace()
+
     def visit_Text(self, node: Node) -> None:
-        self.write(str(node).replace("\x00", "\\"))
+        # Escape `|` in text nodes (is an issue in `unicode::` substitutions.)
+        text = re.sub("(?<!\x00)\\|", "\x00|", str(node))
+
+        # Docutils converts backslashes into nuls, so we flip them back.
+        text = text.replace("\x00", "\\")
+
+        # Insert whitespace between adjacent text nodes (mostly important for
+        # substitutions.)
+        if self.needs_space(node):
+            self.write(" ")
+
+        self.write(text)
 
     def depart_Text(self, node: Node) -> None:
         pass
@@ -373,11 +452,12 @@ class RstTranslator(nodes.NodeVisitor):
         else:
             raise NotImplementedError("image without uri")
 
-        self.write(f".. image:: {arg}\n")
+        self.write_markup_start(node, "image")
+        self.write(f" {arg}\n")
         self.indent += 3
         self.write_attributes(
             node,
-            ("target", "alt", "height", "width", "scale"),
+            ("names", "classes", "target", "alt", "height", "width", "scale"),
         )
         self.indent -= 3
 
@@ -449,3 +529,55 @@ class RstTranslator(nodes.NodeVisitor):
     depart_important = depart_note
     depart_tip = depart_note
     depart_warning = depart_note
+
+    def visit_substitution_reference(self, node: Node) -> None:
+        # Insert whitespace between adjacent references
+        if self.needs_space(node):
+            self.write(" ")
+
+        self.write("|")
+
+    def depart_substitution_reference(self, node: Node) -> None:
+        self.write("|")
+
+    def visit_substitution_definition(self, node: Node) -> None:
+        names = node["names"]
+
+        if not names:
+            raise NotImplementedError("substitution without name")
+        elif len(names) > 1:
+            self.log_warning(
+                "substitution with multiple names not implemented"
+            )
+
+        self.write(f".. |{names[0]}| ")
+        self.indent += 3
+
+        if len(node.children) == 1:
+            child = node.children[0]
+
+            if isinstance(child, nodes.image):
+                return
+
+        is_unicode = "ltrim" in node or "rtrim" in node
+
+        if not is_unicode:
+            is_unicode = len(node.children) > 1
+
+            for child in node.children:
+                is_unicode &= isinstance(child, nodes.Text)
+                if not is_unicode:
+                    break
+
+        if is_unicode:
+            self.write("unicode:: ")
+        else:
+            self.write("replace:: ")
+
+    def depart_substitution_definition(self, node: Node) -> None:
+        self.write("\n")
+        self.write_attributes(
+            node,
+            (_AttrKind("ltrim", flag=True), _AttrKind("rtrim", flag=True)),
+        )
+        self.indent -= 3
