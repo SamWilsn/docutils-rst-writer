@@ -137,9 +137,11 @@ class _Reference:
     text_only: bool
     anonymous: bool
     target: Optional[str]
+    refname: Optional[str]
 
     def __init__(self, node: Node):
         self.anonymous = "anonymous" in node and bool(node["anonymous"])
+        self.refname = node.get("refname", None)
 
         if "refuri" in node:
             self.target = escape_uri(node["refuri"])
@@ -467,14 +469,15 @@ class RstTranslator(nodes.NodeVisitor):
     def visit_reference(self, node: Node) -> None:
         reference = _Reference(node)
         if reference.text_only:
-            self.write("`")
+            if reference.anonymous or reference.refname is not None:
+                self.write("`")
 
     def depart_reference(self, node: Node) -> None:
         reference = _Reference(node)
         if reference.text_only:
             if reference.anonymous:
                 self.write("`__")
-            else:
+            elif reference.refname is not None:
                 self.write("`_")
 
     def visit_target(self, node: Node) -> None:

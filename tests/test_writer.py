@@ -434,6 +434,12 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         .. [this] here.
         """,
     ),
+    (
+        "reference_hyperlink",
+        """
+        https://example.com
+        """,
+    ),
     #
     # Substitutions
     #
