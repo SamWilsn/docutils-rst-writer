@@ -632,3 +632,16 @@ class RstTranslator(nodes.NodeVisitor):
 
     def depart_label(self, node: Node) -> None:
         self.write("] ")
+
+    def visit_citation_reference(self, node: Node) -> None:
+        self.write("[")
+
+    def depart_citation_reference(self, node: Node) -> None:
+        self.write("]_")
+
+    def visit_citation(self, node: Node) -> None:
+        self.write(".. ")
+        self.indent += 3
+
+    def depart_citation(self, node: Node) -> None:
+        self.indent -= 3
