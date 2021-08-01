@@ -458,6 +458,16 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         <http://www.python.org/>`_.
         """,
     ),
+    (
+        "reference_internal",
+        """
+        Internal crossreferences, like example_.
+
+        .. _example:
+
+        This is an example crossreference target.
+        """,
+    ),
     #
     # Substitutions
     #

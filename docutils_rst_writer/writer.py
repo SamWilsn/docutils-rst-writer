@@ -504,7 +504,7 @@ class RstTranslator(nodes.NodeVisitor):
         if node.children:
             self.write("`")
         else:
-            self.write("\n")
+            self.write("\n\n")
 
     def visit_note(self, node: Node) -> None:
         self.write(f".. {node.tagname}:: ")
