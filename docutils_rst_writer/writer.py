@@ -410,6 +410,30 @@ class RstTranslator(nodes.NodeVisitor):
         formatted = item.format() + " "
         self.indent -= len(formatted)
 
+    def visit_field_list(self, node: Node) -> None:
+        pass  # TODO
+
+    def depart_field_list(self, node: Node) -> None:
+        pass  # TODO
+
+    def visit_field(self, node: Node) -> None:
+        pass  # TODO
+
+    def depart_field(self, node: Node) -> None:
+        pass  # TODO
+
+    def visit_field_name(self, node: Node) -> None:
+        self.write(":")
+
+    def depart_field_name(self, node: Node) -> None:
+        self.write(": ")
+
+    def visit_field_body(self, node: Node) -> None:
+        self.indent += 3
+
+    def depart_field_body(self, node: Node) -> None:
+        self.indent -= 3
+
     def visit_literal_block(self, node: Node) -> None:
         self.write("::\n\n")
         self.indent += 3
@@ -648,3 +672,11 @@ class RstTranslator(nodes.NodeVisitor):
 
     def depart_citation(self, node: Node) -> None:
         self.indent -= 3
+
+    def visit_comment(self, node: Node) -> None:
+        self.write(".. ")
+        self.indent += 3
+
+    def depart_comment(self, node: Node) -> None:
+        self.indent -= 3
+        self.write("\n\n")

@@ -204,6 +204,19 @@ rewrite_testdata: List[Tuple[str, ...]] = [
            lines are not allowed between term and definition.
         """,
     ),
+    (
+        "field_lists",
+        """
+        :Authors:
+            Tony J. (Tibs) Ibbs,
+            David Goodger
+
+            (and sundry other good-natured folks)
+
+        :Version: 1.0 of 2001/08/08
+        :Dedication: To my father.
+        """,
+    ),
     #
     # Preformatting
     #
@@ -632,6 +645,33 @@ rewrite_testdata: List[Tuple[str, ...]] = [
            - The note contains all indented body elements
              following.
            - It includes this bullet list.
+        """,
+    ),
+    #
+    # Comments
+    #
+    (
+        "comment_comments",
+        """
+        .. This text will not be shown
+           (but, for instance, in HTML might be
+           rendered as an HTML comment)
+
+        After Comment
+        """,
+    ),
+    (
+        "comment_empty",
+        """
+        An "empty comment" does not
+        consume following blocks.
+        (An empty comment is ".." with
+        blank lines before and after.)
+
+        ..
+
+           So this block is not "lost",
+           despite its indentation.
         """,
     ),
 ]
