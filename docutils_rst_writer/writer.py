@@ -179,6 +179,7 @@ class _AttrKind:
 class RstTranslator(nodes.NodeVisitor):
     lines: List[str]
     indent: int
+    line_block_indent: int
     section_depth: Optional[int]
     title_underline: str = "=-~#_`:.'^*+\""
 
@@ -186,6 +187,7 @@ class RstTranslator(nodes.NodeVisitor):
         super().__init__(document)
         self.lines = [""]
         self.indent = 0
+        self.line_block_indent = 0
         self.section_depth = None
 
     @staticmethod
@@ -442,6 +444,51 @@ class RstTranslator(nodes.NodeVisitor):
         self.write("\n\n")
         self.indent -= 3
 
+    def visit_option_list(self, node: Node) -> None:
+        pass
+
+    def depart_option_list(self, node: Node) -> None:
+        pass
+
+    def visit_option_group(self, node: Node) -> None:
+        pass
+
+    def depart_option_group(self, node: Node) -> None:
+        pass
+
+    def visit_option_list_item(self, node: Node) -> None:
+        pass
+
+    def depart_option_list_item(self, node: Node) -> None:
+        pass
+
+    def visit_option(self, node: Node) -> None:
+        if node.parent.index(node) != 0:
+            self.write(", ")
+
+    def depart_option(self, node: Node) -> None:
+        pass
+
+    def visit_option_argument(self, node: Node) -> None:
+        delim = node.get("delimiter", " ")
+        self.write(delim)
+
+    def depart_option_argument(self, node: Node) -> None:
+        pass
+
+    def visit_option_string(self, node: Node) -> None:
+        pass
+
+    def depart_option_string(self, node: Node) -> None:
+        pass
+
+    def visit_description(self, node: Node) -> None:
+        self.write("\n")
+        self.indent += 3
+
+    def depart_description(self, node: Node) -> None:
+        self.indent -= 3
+
     def visit_system_message(self, node: Node) -> None:
         # TODO: improve formatting, and log at correct level.
         self.log_warning(node)
@@ -679,4 +726,28 @@ class RstTranslator(nodes.NodeVisitor):
 
     def depart_comment(self, node: Node) -> None:
         self.indent -= 3
+        self.write("\n\n")
+
+    def visit_line_block(self, node: Node) -> None:
+        self.line_block_indent += 1
+
+    def depart_line_block(self, node: Node) -> None:
+        assert self.line_block_indent >= 1
+        self.line_block_indent -= 1
+        if not isinstance(node.parent, nodes.line_block):
+            self.write("\n")
+
+    def visit_line(self, node: Node) -> None:
+        prefix = "|" + (" " * self.line_block_indent)
+        self.write(prefix)
+        self.indent += len(prefix)
+
+    def depart_line(self, node: Node) -> None:
+        self.indent -= self.line_block_indent + 1
+        self.write("\n")
+
+    def visit_doctest_block(self, node: Node) -> None:
+        pass  # TODO
+
+    def depart_doctest_block(self, node: Node) -> None:
         self.write("\n\n")

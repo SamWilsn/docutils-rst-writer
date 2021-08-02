@@ -202,6 +202,8 @@ rewrite_testdata: List[Tuple[str, ...]] = [
            The term is a one-line phrase, and the definition is one or more
            paragraphs or body elements, indented relative to the term. Blank
            lines are not allowed between term and definition.
+
+        After paragraph
         """,
     ),
     (
@@ -215,6 +217,59 @@ rewrite_testdata: List[Tuple[str, ...]] = [
 
         :Version: 1.0 of 2001/08/08
         :Dedication: To my father.
+
+        After paragraph
+        """,
+    ),
+    (
+        "option_lists",
+        """
+        -a            command-line option "a"
+        -b file       options can have arguments
+                      and long descriptions
+        --long        options can be long also
+        --input=file  long options can also have
+                      arguments
+        /V            DOS/VMS-style options too
+        """,
+    ),
+    (
+        "option_lists_group",
+        """
+        -a            command-line option "a"
+        -1 file, --one=file, --two file
+                      Multiple options with arguments.
+        """,
+    ),
+    (
+        "option_lists_paragraphs",
+        """
+        -a         Output all.
+        -b         Output both (this description is
+                   quite long).
+        -c arg     Output just arg.
+        --long     Output all day long.
+
+        -p         This option has two paragraphs in the description.
+                   This is the first.
+
+                   This is the second.  Blank lines may be omitted between
+                   options (as above) or left in (as here and below).
+
+        --very-long-option  A VMS-style option.  Note the adjustment for
+                            the required two spaces.
+
+        --an-even-longer-option
+                   The description can also start on the next line.
+
+        -2, --two  This option has two variants.
+
+        -f FILE, --file=FILE  These two options are synonyms; both have
+                              arguments.
+
+        /V         A VMS/DOS-style option.
+
+        after paragraph
         """,
     ),
     #
@@ -240,6 +295,50 @@ rewrite_testdata: List[Tuple[str, ...]] = [
 
             This is preformatted text, and the
             last "::" paragraph is removed
+
+        After paragraph.
+        """,
+    ),
+    (
+        "preformat_per_line",
+        """
+        Per-line quoting can also be used on
+        unindented literal blocks::
+
+        > Useful for quotes from email and
+        > for Haskell literate programming.
+
+        After paragraph.
+        """,
+    ),
+    (
+        "preformat_line_blocks",
+        """
+        | Line blocks are useful for addresses,
+        | verse, and adornment-free lists.
+        |
+        | Each new line begins with a
+        | vertical bar ("|").
+        |     Line breaks and initial indents
+        |     are preserved.
+        | Continuation lines are wrapped
+          portions of long lines; they begin
+          with spaces in place of vertical bars.
+
+        After paragraph.
+        """,
+    ),
+    (
+        "preformat_doctest",
+        """
+        Doctest blocks are interactive
+        Python sessions. They begin with
+        "``>>>``" and end with a blank line.
+
+        >>> print "This is a doctest block."
+        This is a doctest block.
+
+        After paragraph.
         """,
     ),
     #
