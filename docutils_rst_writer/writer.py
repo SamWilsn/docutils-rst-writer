@@ -24,13 +24,15 @@ from __future__ import (
 import logging
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from docutils import nodes, writers
 from docutils.nodes import Node
 from docutils.nodes import document as Document
 from docutils.utils import roman
+
+from .table import CellContent, Table
 
 
 def escape_uri(uri: str) -> str:
@@ -133,6 +135,7 @@ class _ListItem:
         return f"{self.prefix}{counter}{self.suffix}"
 
 
+@dataclass
 class _Reference:
     text_only: bool
     anonymous: bool
@@ -176,19 +179,58 @@ class _AttrKind:
         self.flag = flag
 
 
+@dataclass
+class _Capture:
+    lines: List[str] = field(default_factory=lambda: [""])
+    indent: int = 0
+    line_block_indent: int = 0
+    section_depth: Optional[int] = None
+    table: Optional[Table] = None
+
+
 class RstTranslator(nodes.NodeVisitor):
-    lines: List[str]
-    indent: int
-    line_block_indent: int
-    section_depth: Optional[int]
+    captures: List[_Capture]
     title_underline: str = "=-~#_`:.'^*+\""
+
+    @property
+    def lines(self) -> List[str]:
+        return self.captures[-1].lines
+
+    @property
+    def indent(self) -> int:
+        return self.captures[-1].indent
+
+    @indent.setter
+    def indent(self, v: int) -> None:
+        self.captures[-1].indent = v
+
+    @property
+    def line_block_indent(self) -> int:
+        return self.captures[-1].line_block_indent
+
+    @line_block_indent.setter
+    def line_block_indent(self, v: int) -> None:
+        self.captures[-1].line_block_indent = v
+
+    @property
+    def section_depth(self) -> Optional[int]:
+        return self.captures[-1].section_depth
+
+    @section_depth.setter
+    def section_depth(self, v: Optional[int]) -> None:
+        self.captures[-1].section_depth = v
+
+    @property
+    def table(self) -> Optional[Table]:
+        return self.captures[-1].table
+
+    @table.setter
+    def table(self, v: Optional[Table]) -> None:
+        self.captures[-1].table = v
 
     def __init__(self, document: Document) -> None:
         super().__init__(document)
-        self.lines = [""]
-        self.indent = 0
-        self.line_block_indent = 0
-        self.section_depth = None
+        self.captures = [_Capture()]
 
     @staticmethod
     def log_warning(message: str) -> None:
@@ -207,6 +249,13 @@ class RstTranslator(nodes.NodeVisitor):
     @classmethod
     def log_unknown(cls, kind: str, node: Node) -> None:
         cls.log_warning("%s(%s) unsupported formatting" % (kind, node))
+
+    def capture(self) -> None:
+        self.captures.append(_Capture(section_depth=self.section_depth))
+
+    def release(self) -> _Capture:
+        assert len(self.captures) > 1
+        return self.captures.pop()
 
     def write(self, text: str) -> None:
         lines = text.split("\n")
@@ -513,6 +562,9 @@ class RstTranslator(nodes.NodeVisitor):
         pass
 
     def depart_title(self, node: Node) -> None:
+        if isinstance(node.parent, nodes.table):
+            return
+
         assert self.section_depth is not None
         # TODO: Account for ellipsis/strong/... in title length
         length = sum(len(str(x)) for x in node.children)
@@ -747,7 +799,112 @@ class RstTranslator(nodes.NodeVisitor):
         self.write("\n")
 
     def visit_doctest_block(self, node: Node) -> None:
-        pass  # TODO
+        pass
 
     def depart_doctest_block(self, node: Node) -> None:
         self.write("\n\n")
+
+    def visit_table(self, node: Node) -> None:
+        self.write(".. table::")
+        self.indent += 3
+
+        children = node.children
+
+        if isinstance(children[0], nodes.title):
+            self.write(" ")
+            children[0].walkabout(self)
+            children = children[1:]
+
+        self.write("\n")
+
+        # TODO: Implement stub columns
+
+        self.write_attributes(
+            node,
+            ("classes",),
+        )
+
+        if "colwidths-given" in node.get("classes", []):
+            # TODO: Implement this.
+            self.log_warning("table with explicit widths not yet supported")
+
+        for child in children:
+            if isinstance(child, nodes.title):
+                raise NotImplementedError("multiple table titles")
+
+            child.walkabout(self)
+
+        raise nodes.SkipChildren
+
+    def depart_table(self, node: Node) -> None:
+        self.write("\n\n")
+        self.indent -= 3
+
+    def visit_tgroup(self, node: Node) -> None:
+        column_widths: List[int] = []
+
+        for child in node.children:
+            if not isinstance(child, nodes.colspec):
+                continue
+            column_widths.append(child["colwidth"])
+
+        assert self.table is None
+        assert len(column_widths) == node["cols"]
+
+        self.table = Table(column_widths=column_widths)
+
+    def depart_tgroup(self, node: Node) -> None:
+        assert self.table is not None
+        # TODO: Write the table I guess?
+        rendered = "\n".join(self.table.render())
+        self.table = None
+        self.write(rendered)
+
+    def visit_colspec(self, node: Node) -> None:
+        pass
+
+    def depart_colspec(self, node: Node) -> None:
+        pass
+
+    def visit_thead(self, node: Node) -> None:
+        assert self.table is not None
+        assert not self.table.in_header
+        self.table.in_header = True
+        self.write("\n\n")
+
+    def depart_thead(self, node: Node) -> None:
+        assert self.table is not None
+        assert self.table.in_header
+        self.table.in_header = False
+
+    def visit_tbody(self, node: Node) -> None:
+        if self.lines[-1]:
+            # XXX: Need to write newlines after `.. table::` if there isn't a
+            #      `thead` element.
+            self.write("\n\n")
+
+    def depart_tbody(self, node: Node) -> None:
+        pass  # TODO
+
+    def visit_row(self, node: Node) -> None:
+        assert self.table is not None
+        self.table.rows.append([])
+
+    def depart_row(self, node: Node) -> None:
+        pass
+
+    def visit_entry(self, node: Node) -> None:
+        self.capture()
+
+    def depart_entry(self, node: Node) -> None:
+        captured = self.release()
+
+        assert self.table is not None
+        cell = CellContent(
+            lines=captured.lines,
+            header=self.table.in_header,
+            morecols=node.get("morecols", 0),
+            morerows=node.get("morerows", 0),
+        )
+
+        self.table.rows[-1].append(cell)

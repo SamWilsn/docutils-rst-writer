@@ -773,6 +773,279 @@ rewrite_testdata: List[Tuple[str, ...]] = [
            despite its indentation.
         """,
     ),
+    (
+        "table_grid",
+        """
+        Grid table:
+
+        +------------+------------+-----------+
+        | Header 1   | Header 2   | Header 3  |
+        +============+============+===========+
+        | body row 1 | column 2   | column 3  |
+        +------------+------------+-----------+
+        | body row 2 | Cells may span columns.|
+        +------------+------------+-----------+
+        | body row 3 | Cells may  | - Cells   |
+        +------------+ span rows. | - contain |
+        | body row 4 |            | - blocks. |
+        +------------+------------+-----------+
+
+        After paragraph
+        """,
+    ),
+    (
+        "table_simple",
+        """
+        Simple table:
+
+        =====  =====  ======
+           Inputs     Output
+        ------------  ------
+          A      B    A or B
+        =====  =====  ======
+        False  False  False
+        True   False  True
+        False  True   True
+        True   True   True
+        =====  =====  ======
+
+        After paragraph
+        """,
+    ),
+    (
+        "table_grid_no_header",
+        """
+        +--------+--------+--------+
+        | Cell 1 | Cell 2 | Cell 3 |
+        +--------+--------+--------+
+        """,
+    ),
+    (
+        "table_grid_rowspan_then_colspan",
+        """
+        +------------+------------+-----------+
+        | Header 1   | Header 2   | Header 3  |
+        +============+============+===========+
+        | body row 1 | Cells may span columns.|
+        |            +------------+-----------+
+        |            | R2C2       | R2C3      |
+        +------------+------------+-----------+
+        """,
+    ),
+    (
+        "table_grid_rowspan",
+        """
+        +------------+------------+-----------+
+        | Header 1   | Header 2   | Header 3  |
+        +============+============+===========+
+        | body row 1 | column 2   | column 3  |
+        |            +------------+-----------+
+        |            | Cells may span columns.|
+        +------------+------------------------+
+        """,
+    ),
+    (
+        "table_grid_colspan_then_rowspan",
+        """
+        +------------+------------+-----------+
+        | R0C0       | R0C1       | R0C2      |
+        +============+============+===========+
+        | R1C0C1                  | R1R2C2    |
+        +------------+------------+           |
+        | R2C0       | R2C1       |           |
+        +------------+------------+-----------+
+        """,
+    ),
+    (
+        "table_grid_colspan",
+        """
+        +------------+------------+-----------+
+        | Header 1   | Header 2   | Header 3  |
+        +============+============+===========+
+        | body row 1 | column 2   | column 3  |
+        +------------+------------+           |
+        | body row 2   column 2   |           |
+        +-------------------------+-----------+
+        """,
+    ),
+    (
+        "table_grid_rowcolspan",
+        """
+        +------------+------------+-----------+
+        | Header 1   | Header 2   | Header 3  |
+        +============+============+===========+
+        | body row 1 | column 2     column 3  |
+        +------------+                        |
+        | body row 2 |                        |
+        +------------+------------------------+
+        """,
+    ),
+    (
+        "table_grid_rowcolspan_flip",
+        """
+        +------------+------------+-----------+
+        | Header 1   | Header 2   | Header 3  |
+        +============+============+===========+
+        | column 1     column 2   | column 3  |
+        |                         +-----------+
+        |                         | row 2     |
+        +-------------------------+-----------+
+        """,
+    ),
+    (
+        "table_grid_rowspan_bricks",
+        """
+        +------------+------------------------+
+        | R0C0       | R0C1C2                 |
+        +============+============+===========+
+        | R1C0C1                  | R1C1C2    |
+        +------------+------------+-----------+
+        | R2C0       | R2C1C2                 |
+        +------------+------------------------+
+        """,
+    ),
+    (
+        "table_grid_rowspan_bricks_flip",
+        """
+        +-------------------------+-----------+
+        | R0C0C1                  | R0C2      |
+        +============+============+===========+
+        | R1C0       | R1C1C2                 |
+        +------------+------------+-----------+
+        | R2C0C1                  | R2C2      |
+        +-------------------------+-----------+
+        """,
+    ),
+    (
+        "table_css",
+        """
+        .. csv-table:: Frozen Delights!
+           :header: "Treat", "Quantity", "Description"
+
+           "Albatross", 2.99, "On a stick!"
+           "Crunchy Frog", 1.49, "If we took the bones"
+           "Gannet Ripple", 1.99, "On a stick!"
+        """,
+    ),
+    (
+        "table_css_stub",
+        "not implemented yet",
+        """
+        .. csv-table:: Frozen Delights!
+           :header: "Treat", "Quantity", "Description"
+           :stub-columns: 1
+
+           "Albatross", 2.99, "On a stick!"
+           "Crunchy Frog", 1.49, "If we took the bones"
+           "Gannet Ripple", 1.99, "On a stick!"
+        """,
+    ),
+    (
+        "table_css_wide",
+        "colwidth incorrectly calculated",
+        """
+        .. csv-table:: Frozen Delights!
+           :header: "Treat", "Quantity", "Description"
+           :stub-columns: 1
+
+           "Albatross", 2.99, "On a stick!"
+           "Crunchy Frog", 1.49, "If we took the bones out, it wouldn't be
+           crunchy, now would it?"
+           "Gannet Ripple", 1.99, "On a stick!"
+        """,
+    ),
+    (
+        "table_css_with_widths",
+        "not implemented yet",
+        """
+        .. csv-table:: Frozen Delights!
+           :header: "Treat", "Quantity", "Description"
+           :widths: 15, 10, 30
+           :stub-columns: 1
+
+           "Albatross", 2.99, "On a stick!"
+           "Crunchy Frog", 1.49, "If we took the bones out, it wouldn't be
+           crunchy, now would it?"
+           "Gannet Ripple", 1.99, "On a stick!"
+        """,
+    ),
+    (
+        "table_list",
+        """
+        .. list-table:: *Frozen* Delights!
+           :header-rows: 1
+
+           * - Treat
+             - Quantity
+             - Description
+           * - Albatross
+             - 2.99
+             - On a stick!
+           * - Crunchy Frog
+             - 1.49
+             - If we took the bones out
+           * - Gannet Ripple
+             - 1.99
+             - On a stick!
+        """,
+    ),
+    (
+        "table_list_wide",
+        "colwidth incorrectly calculated",
+        """
+        .. list-table:: *Frozen* Delights!
+           :header-rows: 1
+
+           * - Treat
+             - Quantity
+             - Description
+           * - Albatross
+             - 2.99
+             - On a stick!
+           * - Crunchy Frog
+             - 1.49
+             - If we took the bones out, it wouldn't be
+               crunchy, now would it?
+           * - Gannet Ripple
+             - 1.99
+             - On a stick!
+        """,
+    ),
+    (
+        "table_list_with_widths",
+        "not implemented yet",
+        """
+        .. list-table:: *Frozen* Delights!
+           :widths: 15 10 30
+           :header-rows: 1
+
+           * - Treat
+             - Quantity
+             - Description
+           * - Albatross
+             - 2.99
+             - On a stick!
+           * - Crunchy Frog
+             - 1.49
+             - If we took the bones out, it wouldn't be
+               crunchy, now would it?
+           * - Gannet Ripple
+             - 1.99
+             - On a stick!
+        """,
+    ),
+    (
+        "table_list_only_header",
+        """
+        .. list-table:: Only Header!
+           :header-rows: 1
+
+           * - Treat
+           * - Albatross
+           * - Crunchy Frog
+           * - Gannet Ripple
+        """,
+    ),
 ]
 
 
@@ -788,11 +1061,11 @@ def test_rewrite(src: str, skip: Optional[str]) -> None:
     src = dedent(src).lstrip()
 
     doc = parse_rst(src)
-    wrote = write_rst(doc)
-    assert wrote is not None
-
     print("expected doc:\n")
     print(doc, end="\n\n")
+
+    wrote = write_rst(doc)
+    assert wrote is not None
 
     print("actual doc:\n")
     print(parse_rst(wrote), end="\n\n")
