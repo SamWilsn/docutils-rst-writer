@@ -908,3 +908,9 @@ class RstTranslator(nodes.NodeVisitor):
         )
 
         self.table.rows[-1].append(cell)
+
+    def visit_title_reference(self, node: Node) -> None:
+        self.write(":title-reference:`")
+
+    def depart_title_reference(self, node: Node) -> None:
+        self.write("`")

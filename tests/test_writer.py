@@ -39,6 +39,12 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         This is another one.
         """,
     ),
+    (
+        "title_reference",
+        """
+        :title-reference:`foo`
+        """,
+    ),
     #
     # Text Formatting
     #
