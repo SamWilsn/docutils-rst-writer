@@ -460,6 +460,7 @@ class RstTranslator(nodes.NodeVisitor):
         item = _ListItem(node)
         formatted = item.format() + " "
         self.indent -= len(formatted)
+        self.write("\n")
 
     def visit_field_list(self, node: Node) -> None:
         pass  # TODO

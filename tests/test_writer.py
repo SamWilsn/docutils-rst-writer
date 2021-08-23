@@ -187,6 +187,13 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         """,
     ),
     (
+        "bulleted_list_empty",
+        """
+        *
+        *
+        """,
+    ),
+    (
         "bulleted_lists",
         """
         *  a bullet point using "*"
