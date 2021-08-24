@@ -45,6 +45,16 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         :title-reference:`foo`
         """,
     ),
+    (
+        "transition",
+        """
+        Paragraph 1.
+
+        ----
+
+        Paragraph 2.
+        """,
+    ),
     #
     # Text Formatting
     #
@@ -181,6 +191,14 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         """,
     ),
     (
+        "enumerated_list_empty_then_paragraph",
+        """
+        1.
+
+        D
+        """,
+    ),
+    (
         "bulleted_list_asterix",
         """
         *  a bullet point
@@ -191,6 +209,14 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         """
         *
         *
+        """,
+    ),
+    (
+        "bulleted_list_empty_then_paragraph",
+        """
+        *
+
+        D
         """,
     ),
     (
@@ -729,6 +755,13 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         Today's date is |date|.
 
         This document was generated on |date| at |time|.
+        """,
+    ),
+    (
+        "substitution_escape",
+        "broken [fuzz]",
+        """
+        |-|*|
         """,
     ),
     #

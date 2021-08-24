@@ -442,13 +442,13 @@ class RstTranslator(nodes.NodeVisitor):
         pass
 
     def depart_bullet_list(self, node: Node) -> None:
-        pass
+        self.write("\n")
 
     def visit_enumerated_list(self, node: Node) -> None:
         pass
 
     def depart_enumerated_list(self, node: Node) -> None:
-        pass
+        self.write("\n")
 
     def visit_list_item(self, node: Node) -> None:
         item = _ListItem(node)
@@ -466,7 +466,7 @@ class RstTranslator(nodes.NodeVisitor):
         pass  # TODO
 
     def depart_field_list(self, node: Node) -> None:
-        pass  # TODO
+        self.write("\n")
 
     def visit_field(self, node: Node) -> None:
         pass  # TODO
@@ -498,7 +498,7 @@ class RstTranslator(nodes.NodeVisitor):
         pass
 
     def depart_option_list(self, node: Node) -> None:
-        pass
+        self.write("\n")
 
     def visit_option_group(self, node: Node) -> None:
         pass
@@ -915,3 +915,9 @@ class RstTranslator(nodes.NodeVisitor):
 
     def depart_title_reference(self, node: Node) -> None:
         self.write("`")
+
+    def visit_transition(self, node: Node) -> None:
+        self.write("\n\n----\n\n")
+
+    def depart_transition(self, node: Node) -> None:
+        pass
