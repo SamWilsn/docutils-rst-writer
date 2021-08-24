@@ -40,6 +40,10 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         """,
     ),
     (
+        "fuzz_0001",
+        "\xa7:;::\x8a\x9c\xd3",
+    ),
+    (
         "title_reference",
         """
         :title-reference:`foo`
@@ -258,6 +262,12 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         :Dedication: To my father.
 
         After paragraph
+        """,
+    ),
+    (
+        "field_list_rcs_keywords",
+        """
+        :Status: $keyword: expansion text $
         """,
     ),
     (
