@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from docutils import nodes, writers
 from docutils.nodes import Node
 from docutils.nodes import document as Document
+from docutils.nodes import fully_normalize_name
 from docutils.utils import roman
 
 from .table import CellContent, Table
@@ -142,24 +143,42 @@ class _Reference:
     target: Optional[str]
     refname: Optional[str]
 
-    def __init__(self, node: Node):
+    def __init__(self, document: Document, node: Node):
         self.anonymous = "anonymous" in node and bool(node["anonymous"])
-        self.refname = node.get("refname", None)
+        self.target = None
 
-        if "refuri" in node:
-            self.target = escape_uri(node["refuri"])
-        elif "refname" in node:
-            self.target = f"`{node['refname']}`_"
+        self.refname = node.get("name", node.get("refname", None))
+        refuri = node.get("refuri")
+        refid = node.get("refid")
+
+        if self.refname is None:
+            refname = node.astext()
         else:
-            self.target = None
+            refname = self.refname
 
-        text_only = True
-        for child in node.children:
-            if not isinstance(child, nodes.Text):
-                text_only = False
-                break
+        if refid:
+            normalized = fully_normalize_name(refname)
+            if refid == document.nameids.get(normalized):
+                self.target = refname
+            else:
+                self.target = refid
 
-        self.text_only = text_only
+            if self.refname is None:
+                self.refname = self.target
+        elif refuri:
+            if refuri == refname:
+                self.target = escape_uri(refuri)
+            else:
+                self.target = escape_uri(refuri)
+        elif self.refname:
+            self.target = f"`{self.refname}`_"
+
+        self.text_only = all(isinstance(c, nodes.Text) for c in node.children)
+        self.image_only = (
+            (not self.text_only)
+            and len(node.children) == 1
+            and isinstance(node.children[0], nodes.image)
+        )
 
 
 @dataclass
@@ -186,11 +205,18 @@ class _Capture:
     line_block_indent: int = 0
     section_depth: Optional[int] = None
     table: Optional[Table] = None
+    reference_substitutions: List[str] = field(default_factory=list)
 
 
 class RstTranslator(nodes.NodeVisitor):
     captures: List[_Capture]
     title_underline: str = "=-~#_`:.'^*+\""
+    reference_substitution_count: int
+    extra_substitutions: Dict[str, Tuple[str, Optional[str]]]
+
+    @property
+    def reference_substitutions(self) -> List[str]:
+        return self.captures[-1].reference_substitutions
 
     @property
     def lines(self) -> List[str]:
@@ -231,6 +257,8 @@ class RstTranslator(nodes.NodeVisitor):
     def __init__(self, document: Document) -> None:
         super().__init__(document)
         self.captures = [_Capture()]
+        self.reference_substitution_count = 0
+        self.extra_substitutions = {}
 
     @staticmethod
     def log_warning(message: str) -> None:
@@ -289,7 +317,7 @@ class RstTranslator(nodes.NodeVisitor):
     ) -> None:
         wrote_any = False
         if isinstance(node.parent, nodes.reference):
-            reference = _Reference(node.parent)
+            reference = _Reference(self.document, node.parent)
             if reference.target is not None:
                 wrote_any = True
                 self.write(f":target: {reference.target}\n")
@@ -348,13 +376,28 @@ class RstTranslator(nodes.NodeVisitor):
         pass
 
     def depart_document(self, node: Node) -> None:
-        pass
+        if self.extra_substitutions:
+            self.write("\n\n")
+
+            for name, (value, dest) in self.extra_substitutions.items():
+                self.write(f".. |{name}| replace:: {value}\n")
+                if dest is not None:
+                    self.write(f".. _{name}: {dest}\n")
+                self.write("\n")
 
     def visit_paragraph(self, node: Node) -> None:
         pass
 
     def depart_paragraph(self, node: Node) -> None:
         self.write("\n\n")
+
+    def visit_compound(self, node: Node) -> None:
+        self.write(".. compound::\n\n")
+        self.indent += 3
+
+    def depart_compound(self, node: Node) -> None:
+        self.write("\n\n")
+        self.indent -= 3
 
     def needs_space(self, node: Node) -> bool:
         text = str(node).replace("\x00", "\\")
@@ -486,8 +529,39 @@ class RstTranslator(nodes.NodeVisitor):
     def depart_field_body(self, node: Node) -> None:
         self.indent -= 3
 
-    def visit_literal_block(self, node: Node) -> None:
-        self.write("::\n\n")
+    def visit_literal_block(
+        self,
+        node: Node,
+        language: Optional[str] = None,
+    ) -> None:
+        # TODO: Make this more robust
+        is_code = "code" in node["classes"]
+
+        if language:
+            lang = " " + language
+            is_code = True
+        elif "python" in node["classes"]:
+            lang = " python"
+        else:
+            lang = ""
+
+        number_lines = "\n"
+
+        if not is_code:
+            is_code = not all(isinstance(c, nodes.Text) for c in node.children)
+
+        if isinstance(node.children[0], nodes.inline):
+            if "ln" in node.children[0]["classes"]:
+                number_lines = (
+                    "\n   :number-lines: "
+                    + str(node.children[0].children[0]).strip()
+                    + "\n"
+                )
+
+        if is_code:
+            self.write(f".. code::{lang}{number_lines}\n")
+        else:
+            self.write("::\n\n")
         self.indent += 3
 
     def depart_literal_block(self, node: Node) -> None:
@@ -563,7 +637,7 @@ class RstTranslator(nodes.NodeVisitor):
         pass
 
     def depart_title(self, node: Node) -> None:
-        if isinstance(node.parent, nodes.table):
+        if isinstance(node.parent, (nodes.table, nodes.topic)):
             return
 
         assert self.section_depth is not None
@@ -591,18 +665,37 @@ class RstTranslator(nodes.NodeVisitor):
         pass
 
     def visit_reference(self, node: Node) -> None:
-        reference = _Reference(node)
+        reference = _Reference(self.document, node)
         if reference.text_only:
             if reference.anonymous or reference.refname is not None:
                 self.write("`")
+        elif not reference.image_only:
+            if reference.refname is None:
+                substitution = f"sub-ref-{self.reference_substitution_count}"
+            else:
+                substitution = reference.refname
+
+            self.reference_substitution_count += 1
+            self.reference_substitutions.append(substitution)
+
+            suffix = "__" if reference.anonymous else "_"
+            self.write(f"\\ |{substitution}|{suffix}\\ ")
+            self.capture()
 
     def depart_reference(self, node: Node) -> None:
-        reference = _Reference(node)
+        reference = _Reference(self.document, node)
         if reference.text_only:
             if reference.anonymous:
                 self.write("`__")
             elif reference.refname is not None:
                 self.write("`_")
+        elif not reference.image_only:
+            captured = self.release()
+            substitution = self.reference_substitutions.pop()
+            self.extra_substitutions[substitution] = (
+                captured.lines[0],
+                reference.target,
+            )
 
     def visit_target(self, node: Node) -> None:
         if node.children:
@@ -921,3 +1014,75 @@ class RstTranslator(nodes.NodeVisitor):
 
     def depart_transition(self, node: Node) -> None:
         pass
+
+    def visit_inline(self, node: Node) -> None:
+        if isinstance(node.parent, nodes.literal_block):
+            if "ln" in node["classes"]:
+                raise nodes.SkipNode
+            else:
+                raise nodes.SkipDeparture
+
+        # TODO: Implement inline outside of literal blocks
+        raise nodes.SkipDeparture
+
+    def depart_inline(self, node: Node) -> None:
+        self.write("`\\ ")
+
+    def visit_problematic(self, node: Node) -> None:
+        # TODO
+        pass
+
+    def depart_problematic(self, node: Node) -> None:
+        # TODO
+        pass
+
+    def visit_superscript(self, node: Node) -> None:
+        self.write("\\ :superscript:`")
+
+    def depart_superscript(self, node: Node) -> None:
+        self.write("`\\ ")
+
+    def visit_subscript(self, node: Node) -> None:
+        self.write("\\ :subscript:`")
+
+    def depart_subscript(self, node: Node) -> None:
+        self.write("`\\ ")
+
+    def visit_math(self, node: Node) -> None:
+        self.write("\\ :math:`")
+
+    def depart_math(self, node: Node) -> None:
+        self.write("`\\ ")
+
+    def visit_math_block(self, node: Node) -> None:
+        self.write(".. math::\n\n")
+        self.indent += 3
+
+    def depart_math_block(self, node: Node) -> None:
+        self.write("\n\n")
+        self.indent -= 3
+
+    def visit_topic(self, node: Node) -> None:
+        self.write(".. topic::")
+        self.indent += 3
+
+        children = node.children
+
+        if isinstance(children[0], nodes.title):
+            self.write(" ")
+            children[0].walkabout(self)
+            children = children[1:]
+
+        self.write("\n\n")
+
+        for child in children:
+            if isinstance(child, nodes.title):
+                raise NotImplementedError("multiple topic titles")
+
+            child.walkabout(self)
+
+        raise nodes.SkipChildren
+
+    def depart_topic(self, node: Node) -> None:
+        self.write("\n\n")
+        self.indent -= 3

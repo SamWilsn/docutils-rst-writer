@@ -391,6 +391,52 @@ rewrite_testdata: List[Tuple[str, ...]] = [
         """,
     ),
     #
+    # Body Elements
+    #
+    (
+        "body_math_block",
+        """
+        .. math::
+
+           E = m c^2
+
+        after paragraph
+        """,
+    ),
+    (
+        "body_topic",
+        """
+        .. topic:: Topic Title
+
+           Subsequent indented lines comprise
+           the body of the topic, and are
+           interpreted as body elements.
+
+        after paragraph
+        """,
+    ),
+    (
+        "body_code",
+        """
+        .. code:: python
+
+           def my_function():
+               "just a test"
+               print 8/2
+        """,
+    ),
+    (
+        "body_code_number_lines",
+        """
+        .. code::
+           :number-lines: 10
+
+           def my_function():
+               "just a test"
+               print 8/2
+        """,
+    ),
+    #
     # Sections
     #
     (
@@ -1120,6 +1166,51 @@ rewrite_testdata: List[Tuple[str, ...]] = [
            * - Albatross
            * - Crunchy Frog
            * - Gannet Ripple
+        """,
+    ),
+    #
+    # Roles
+    #
+    (
+        "roles_superscript",
+        """
+        This is some :superscript:`superscript`.
+        """,
+    ),
+    (
+        "roles_superscript_substitution",
+        """
+        The chemical formula for pure water is |H2O|.
+
+        .. |H2O| replace:: H\\ :superscript:`2`\\ O
+        """,
+    ),
+    (
+        "roles_subscript",
+        """
+        This is some :subscript:`subscript`.
+        """,
+    ),
+    (
+        "roles_subscript_substitution",
+        """
+        The chemical formula for pure water is |H2O|.
+
+        .. |H2O| replace:: H\\ :subscript:`2`\\ O
+        """,
+    ),
+    (
+        "roles_math",
+        """
+        The area of a circle is :math:`A_\\text{c} = (\\pi/4) d^2`.
+        """,
+    ),
+    (
+        "roles_math_substitution",
+        """
+        The area of a circle is |circle|.
+
+        .. |circle| replace:: :math:`A_\\text{c} = (\\pi/4) d^2`
         """,
     ),
 ]
