@@ -206,6 +206,7 @@ class _Capture:
     section_depth: Optional[int] = None
     table: Optional[Table] = None
     reference_substitutions: List[str] = field(default_factory=list)
+    allow_inlines: List[bool] = field(default_factory=lambda: [True])
 
 
 class RstTranslator(nodes.NodeVisitor):
@@ -213,6 +214,13 @@ class RstTranslator(nodes.NodeVisitor):
     title_underline: str = "=-~#_`:.'^*+\""
     reference_substitution_count: int
     extra_substitutions: Dict[str, Tuple[str, Optional[str]]]
+
+    role_count: int
+    extra_roles: Dict[Tuple[str, ...], str]
+
+    @property
+    def allow_inlines(self) -> List[bool]:
+        return self.captures[-1].allow_inlines
 
     @property
     def reference_substitutions(self) -> List[str]:
@@ -259,6 +267,9 @@ class RstTranslator(nodes.NodeVisitor):
         self.captures = [_Capture()]
         self.reference_substitution_count = 0
         self.extra_substitutions = {}
+
+        self.role_count = 0
+        self.extra_roles = {}
 
     @staticmethod
     def log_warning(message: str) -> None:
@@ -383,6 +394,17 @@ class RstTranslator(nodes.NodeVisitor):
                 self.write(f".. |{name}| replace:: {value}\n")
                 if dest is not None:
                     self.write(f".. _{name}: {dest}\n")
+                self.write("\n")
+
+        if self.extra_roles:
+            self.write("\n\n")
+
+            for classes, name in self.extra_roles.items():
+                self.write(f".. role:: {name}\n")
+                self.indent += 3
+                class_str = " ".join(classes)
+                self.write(f":class: {class_str}\n")
+                self.indent -= 3
                 self.write("\n")
 
     def visit_paragraph(self, node: Node) -> None:
@@ -563,10 +585,13 @@ class RstTranslator(nodes.NodeVisitor):
         else:
             self.write("::\n\n")
         self.indent += 3
+        self.allow_inlines.append(False)
 
     def depart_literal_block(self, node: Node) -> None:
         self.write("\n\n")
         self.indent -= 3
+        allowed = self.allow_inlines.pop()
+        assert not allowed
 
     def visit_option_list(self, node: Node) -> None:
         pass
@@ -1019,14 +1044,29 @@ class RstTranslator(nodes.NodeVisitor):
         if isinstance(node.parent, nodes.literal_block):
             if "ln" in node["classes"]:
                 raise nodes.SkipNode
-            else:
-                raise nodes.SkipDeparture
 
-        # TODO: Implement inline outside of literal blocks
-        raise nodes.SkipDeparture
+        self.allow_inlines.append(False)
+
+        if not self.allow_inlines[-2]:
+            return
+
+        classes = tuple(sorted(set(node["classes"])))
+
+        try:
+            name = self.extra_roles[classes]
+        except KeyError:
+            name = f"inline-{self.role_count}"
+            self.role_count += 1
+            self.extra_roles[classes] = name
+
+        self.write(f":{name}:`")
 
     def depart_inline(self, node: Node) -> None:
-        self.write("`\\ ")
+        allowed = self.allow_inlines.pop()
+        assert not allowed
+
+        if self.allow_inlines[-1]:
+            self.write("` ")
 
     def visit_problematic(self, node: Node) -> None:
         # TODO
